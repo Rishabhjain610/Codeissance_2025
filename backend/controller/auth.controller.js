@@ -1,73 +1,62 @@
+
 const Auth = require("../models/auth.model");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const { generateToken } = require("../utils/token");
-require("dotenv").config();
+
 const SignUp = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).send("All fields are required");
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: "All fields required" });
     }
-    const existingUser = await Auth.findOne({ email });
+    if (!["NormalUser", "Hospital", "BloodBank"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+    if ((role === "Hospital" || role === "BloodBank") && req.body.isGoogleUser) {
+      return res.status(400).json({ message: "Google sign-in not allowed for this role" });
+    }
+    const existingUser = await Auth.findOne({ email, role });
     if (existingUser) {
-      return res.status(400).send("User already exists");
+      return res.status(400).json({ message: "User already exists" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await Auth.create({
-      name,
-      email,
+      ...req.body,
       password: hashedPassword,
-      isGoogleUser: false,
+      role,
+      isGoogleUser: req.body.isGoogleUser || false,
+      
     });
     const token = generateToken(newUser);
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
-    });
-
-    res.status(201).json({
-      message: "User created successfully",
-      user: newUser,
-      success: true,
-    });
+    res.cookie("token", token, { httpOnly: true, sameSite: "lax", secure: false });
+    res.status(201).json({ user: newUser, success: true });
   } catch (error) {
-    console.log(error.message);
-    res.status(500).send("Error in SignUp");
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 const Login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).send("All fields are required");
+    const { email, password, role } = req.body;
+    if (!email || !password || !role) {
+      return res.status(400).json({ message: "All fields required" });
     }
-    const user = await Auth.findOne({ email });
+    const user = await Auth.findOne({ email, role });
     if (!user) {
-      return res.status(400).send("User does not exist");
+      return res.status(400).json({ message: "User not found" });
+    }
+    if (user.isGoogleUser && role !== "NormalUser") {
+      return res.status(400).json({ message: "Google login only allowed for NormalUser" });
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).send("Invalid credentials");
+      return res.status(400).json({ message: "Invalid credentials" });
     }
     const token = generateToken(user);
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: false,
-      sameSite:"lax",
-      maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
-    });
-    res.status(200).json({
-      message: "Login successful",
-      user: user,
-      success: true,
-    });
+    res.cookie("token", token, { httpOnly: true, sameSite: "lax", secure: false });
+    res.status(200).json({ user, success: true });
   } catch (error) {
-    console.log(error.message);
-    res.status(500).send("Error in Login");
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -86,46 +75,21 @@ const Logout = (req, res) => {
 const googleSignIn = async (req, res) => {
   try {
     const { name, email } = req.body;
-    if (!name || !email) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-    const existingUser = await Auth.findOne({ email });
-    if (existingUser) {
-      const token = generateToken(existingUser);
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        
-        maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
-      });
-      return res.status(200).json({
-        message: "Login successful",
-        user: existingUser,
-        success: true,
-      });
-    } else {
-      const newUser = await Auth.create({
+    const role = "NormalUser";
+    let user = await Auth.findOne({ email, role });
+    if (!user) {
+      user = await Auth.create({
         name,
         email,
-
         isGoogleUser: true,
-      });
-      const token = generateToken(newUser);
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
-      });
-      res.status(201).json({
-        message: "User registered successfully",
-        user: newUser,
-        success: true,
+        role,
       });
     }
+    const token = generateToken(user);
+    res.cookie("token", token, { httpOnly: true, sameSite: "lax", secure: false });
+    res.status(200).json({ user, success: true });
   } catch (error) {
-    res.status(500).json({ message: "Google Login Server Error" });
+    res.status(500).json({ message: "Google sign-in failed" });
   }
 };
 
