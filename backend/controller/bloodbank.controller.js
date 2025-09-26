@@ -28,7 +28,14 @@ const updateBloodStock = async (req, res) => {
 
 const getAppointments = async (req, res) => {
   try {
-    const bloodBank = await Auth.findById(req.user.id).populate("appointments");
+    // Populate userId and bloodBankId to get full user and blood bank info
+    const bloodBank = await Auth.findById(req.user.id).populate({
+      path: "appointments",
+      populate: [
+        { path: "userId", select: "name phone bloodGroup location" },
+        { path: "bloodBankId", select: "name location" }
+      ]
+    });
     res.status(200).json({ appointments: bloodBank.appointments });
   } catch (error) {
     res.status(500).json({ message: "Error fetching appointments" });
