@@ -10,6 +10,7 @@ import {
   Route,
   Routes,
   Navigate,
+  useLocation
 } from "react-router-dom";
 import LandingPage from "../pages/LandingPage";
 import Login from "../pages/Login";
@@ -20,9 +21,25 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UserDataContext } from "../context/UserContext.jsx";
 import { AuthDataContext } from "../context/AuthContext.jsx";
-const App = () => {
+
+// Component to handle conditional navbar rendering
+const AppContent = () => {
   const { user, loading } = useContext(UserDataContext);
   const { serverUrl } = useContext(AuthDataContext);
+  const location = useLocation();
+
+  // Define routes where navbar should be hidden
+  const hideNavbarRoutes = [
+    '/dashboard/bloodbank',
+    '/bloodbank/appointments', 
+    '/bloodbank/requests', 
+    '/bloodbank/inventory',
+    '/dashboard/hospital',
+    '/dashboard/user',
+  ];
+  
+  const shouldHideNavbar = hideNavbarRoutes.includes(location.pathname);
+
   return (
     <>
       <ToastContainer
@@ -38,7 +55,7 @@ const App = () => {
           boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
         }}
       />
-      <Navbar />
+      {!shouldHideNavbar && <Navbar />}
       <Routes>
         <Route
           path="/"
@@ -107,11 +124,52 @@ const App = () => {
             )
           }
         />
+        {/* Blood Bank specific routes */}
+        <Route
+          path="/bloodbank/appointments"
+          element={
+            loading ? (
+              <div>Loading...</div>
+            ) : user && user.role === "BloodBank" ? (
+              <BloodBankDashboard />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/bloodbank/requests"
+          element={
+            loading ? (
+              <div>Loading...</div>
+            ) : user && user.role === "BloodBank" ? (
+              <BloodBankDashboard />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/bloodbank/inventory"
+          element={
+            loading ? (
+              <div>Loading...</div>
+            ) : user && user.role === "BloodBank" ? (
+              <BloodBankDashboard />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
         <Route path="/request-blood" element={<RequestBloodPage />} />
         <Route path="/request-organ" element={<RequestOrganPage />} />
       </Routes>
     </>
   );
+};
+
+const App = () => {
+  return <AppContent />;
 };
 
 export default App;
