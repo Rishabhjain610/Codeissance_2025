@@ -24,7 +24,7 @@ const Sidebar = () => {
 
   return (
     <aside className="h-screen w-64 bg-white shadow-lg flex flex-col py-8 px-4 fixed left-0 top-0">
-      <h2 className="text-2xl font-bold text-red-600 mb-8 text-center"></h2>
+      <h2 className="text-2xl font-bold text-red-600 mb-8 text-center">D</h2>
       <nav className="flex flex-col space-y-4">
         {user && user.role === "NormalUser" && (
           <Link to="/dashboard/user" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">User Home</Link>
