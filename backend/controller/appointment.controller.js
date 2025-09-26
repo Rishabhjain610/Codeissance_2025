@@ -1,7 +1,7 @@
 const Appointment = require("../models/appointment.model");
 const { generatePDF } = require("../utils/pdf");
 
-exports.bookAppointment = async (req, res) => {
+const bookAppointment = async (req, res) => {
   const { userId, bloodBankId, type, date } = req.body;
   try {
     const appointment = await Appointment.create({ userId, bloodBankId, type, date });
@@ -13,3 +13,4 @@ exports.bookAppointment = async (req, res) => {
     res.status(500).json({ message: "Booking failed" });
   }
 };
+module.exports = { bookAppointment };
