@@ -57,7 +57,6 @@ const Navbar = () => {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link 
-            to="/" 
             className="text-2xl font-bold text-red-600 flex items-center hover:text-red-700 transition-transform duration-300 hover:scale-105"
             onClick={() => setIsMobileMenuOpen(false)}
           >

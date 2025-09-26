@@ -24,13 +24,17 @@ const Sidebar = () => {
 
   return (
     <aside className="h-screen w-64 bg-white shadow-lg flex flex-col py-8 px-4 fixed left-0 top-0">
-      <h2 className="text-2xl font-bold text-red-600 mb-8 text-center">Dashboard</h2>
+      <h2 className="text-2xl font-bold text-red-600 mb-8 text-center"></h2>
       <nav className="flex flex-col space-y-4">
         {user && user.role === "NormalUser" && (
           <Link to="/dashboard/user" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">User Home</Link>
         )}
         {user && user.role === "Hospital" && (
-          <Link to="/dashboard/hospital" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">Hospital Home</Link>
+          <><Link to="/dashboard/hospital" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">Hospital Home</Link><Link to="/request-blood" className="py-2 px-4 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold">
+            Request Blood
+          </Link><Link to="/request-organ" className="py-2 px-4 rounded bg-green-100 text-green-700 hover:bg-green-200 font-semibold">
+              Request Organ
+            </Link></>
         )}
         {user && user.role === "BloodBank" && (
           <Link to="/dashboard/bloodbank" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">Blood Bank Home</Link>

@@ -3,6 +3,8 @@ import "./App.css";
 import UserDashboard from "../pages/UserDashboard.jsx";
 import HospitalDashboard from "../pages/HospitalDashboard.jsx";
 import BloodBankDashboard from "../pages/BloodBankDashboard.jsx";
+import RequestBloodPage from "../pages/RequestBloodPage.jsx";
+import RequestOrganPage from "../pages/RequestOrganPage.jsx";
 import {
   BrowserRouter as Router,
   Route,
@@ -105,6 +107,8 @@ const App = () => {
             )
           }
         />
+        <Route path="/request-blood" element={<RequestBloodPage />} />
+        <Route path="/request-organ" element={<RequestOrganPage />} />
       </Routes>
     </>
   );
