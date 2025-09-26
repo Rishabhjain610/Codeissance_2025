@@ -5,7 +5,8 @@ import axios from "axios";
 import { AuthDataContext } from "../context/AuthContext";
 import { UserDataContext } from "../context/UserContext";
 import { toast } from "react-toastify";
-import { Link } from "react-router-dom";
+import jsPDF from "jspdf";
+const BLOODBANK_ID = "68d7032ba4e28fa6517510a8"; // Your BloodBank ID
 
 const UserDashboard = () => {
   const { serverUrl } = useContext(AuthDataContext);
@@ -30,6 +31,12 @@ const UserDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [checkingEligibility, setCheckingEligibility] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+
+  // Appointment modal states
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [appointmentLoading, setAppointmentLoading] = useState(false);
+  const [appointmentSuccess, setAppointmentSuccess] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -101,12 +108,13 @@ const UserDashboard = () => {
     if (!file) return;
 
     // Validate file type and size
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Please upload a valid image file (JPEG, PNG, or WebP)");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    if (file.size > 10 * 1024 * 1024) {
+      // 10MB limit
       toast.error("File size must be less than 10MB");
       return;
     }
@@ -190,7 +198,9 @@ const UserDashboard = () => {
         if (res.data.result === "yes") {
           toast.success("You are eligible to donate blood!");
         } else {
-          toast.warning("Based on your medical certificate, you are not eligible to donate blood at this time.");
+          toast.warning(
+            "Based on your medical certificate, you are not eligible to donate blood at this time."
+          );
         }
       } else {
         throw new Error("Invalid response from eligibility service");
@@ -211,7 +221,9 @@ const UserDashboard = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isBlocked) {
-      toast.error("You are not eligible to donate blood based on current health conditions.");
+      toast.error(
+        "You are not eligible to donate blood based on current health conditions."
+      );
       return;
     }
     setLoading(true);
@@ -234,6 +246,79 @@ const UserDashboard = () => {
     }
   };
 
+  // Appointment modal submit handler
+  const handleAppointmentSubmit = async (e) => {
+    e.preventDefault();
+    setAppointmentLoading(true);
+    setAppointmentSuccess(false);
+    setPdfUrl("");
+    try {
+      const day = e.target.day.value;
+      const time = e.target.time.value;
+      const date = new Date(`${day}T${time}:00.000Z`);
+      const res = await axios.post(
+        `${serverUrl}/api/appointment/book`,
+        {
+          userId: user._id,
+          bloodBankId: BLOODBANK_ID,
+          type: "blood",
+          date,
+        },
+        { withCredentials: true }
+      );
+      setAppointmentSuccess(true);
+      toast.success("Appointment booked! WhatsApp message sent.");
+      const doc = new jsPDF();
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.text("Blood Donation Appointment Receipt", 105, 20, {
+        align: "center",
+      });
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "normal");
+      doc.setDrawColor(200, 0, 0);
+      doc.line(20, 25, 190, 25);
+
+      doc.text(`Donor Name:`, 20, 40);
+      doc.text(`${formData.name}`, 70, 40);
+      doc.text(`Phone:`, 20, 48);
+      doc.text(`${formData.phone}`, 70, 48);
+      doc.text(`Blood Group:`, 20, 56);
+      doc.text(`${formData.bloodGroup}`, 70, 56);
+      doc.text(`City:`, 20, 64);
+      doc.text(`${formData.location.city}`, 70, 64);
+      doc.text(`Age:`, 20, 72);
+      doc.text(`${formData.age}`, 70, 72);
+      doc.text(`Sex:`, 20, 80);
+      doc.text(`${formData.sex}`, 70, 80);
+
+      doc.setDrawColor(200, 0, 0);
+      doc.line(20, 88, 190, 88);
+
+      doc.setFontSize(14);
+      doc.text(`Blood Bank ID:`, 20, 100);
+      doc.text(`${BLOODBANK_ID}`, 70, 100);
+      doc.text(`Type:`, 20, 108);
+      doc.text(`Blood`, 70, 108);
+      doc.text(`Date:`, 20, 116);
+      doc.text(`${date.toLocaleString("en-IN")}`, 70, 116);
+      doc.text(`Status:`, 20, 124);
+      doc.text(`Scheduled`, 70, 124);
+
+      doc.setFontSize(12);
+      doc.setTextColor(100);
+      doc.text("Thank you for saving lives!", 105, 140, { align: "center" });
+
+      doc.save("appointment_receipt.pdf");
+      // Generate PDF in frontend using jsPDF
+      // This will trigger download
+    } catch (err) {
+      toast.error("Failed to book appointment. Please try again.");
+    } finally {
+      setAppointmentLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-50 via-white to-red-50">
       <Sidebar />
@@ -255,8 +340,11 @@ const UserDashboard = () => {
               className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6"
               onSubmit={handleSubmit}
             >
+              {/* ...form fields as before... */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Name
+                </label>
                 <input
                   name="name"
                   type="text"
@@ -267,7 +355,9 @@ const UserDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Email
+                </label>
                 <input
                   name="email"
                   type="email"
@@ -278,9 +368,10 @@ const UserDashboard = () => {
                   disabled
                 />
               </div>
-              {/* Sex field - read-only, filled by OCR */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Sex (from certificate)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Sex (from certificate)
+                </label>
                 <input
                   name="sex"
                   type="text"
@@ -291,7 +382,9 @@ const UserDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Age (from certificate)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Age (from certificate)
+                </label>
                 <input
                   name="age"
                   type="number"
@@ -302,7 +395,9 @@ const UserDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Blood Group</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Blood Group
+                </label>
                 <input
                   name="bloodGroup"
                   type="text"
@@ -313,7 +408,9 @@ const UserDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Phone
+                </label>
                 <input
                   name="phone"
                   type="text"
@@ -324,7 +421,9 @@ const UserDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Location</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Location
+                </label>
                 <div className="flex gap-2 flex-wrap">
                   <input
                     name="location.latitude"
@@ -438,12 +537,15 @@ const UserDashboard = () => {
                   )}
                   {geminiResult === "loading" && (
                     <div className="mt-4 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg font-semibold text-center">
-                      <div className="animate-pulse">Analyzing your medical certificate...</div>
+                      <div className="animate-pulse">
+                        Analyzing your medical certificate...
+                      </div>
                     </div>
                   )}
                   {geminiResult === "no" && (
                     <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg font-semibold text-center">
-                      ❌ Based on your medical certificate, you are not eligible to donate blood at this time.
+                      ❌ Based on your medical certificate, you are not eligible
+                      to donate blood at this time.
                       {rejectionReason && (
                         <div className="mt-2 text-red-800 text-sm font-normal">
                           <strong>Reason:</strong> {rejectionReason}
@@ -453,18 +555,33 @@ const UserDashboard = () => {
                   )}
                   {geminiResult === "yes" && (
                     <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg font-semibold text-center">
-                      ✅ Great! You are eligible to donate blood based on your medical certificate.
-                      <Link
-                        to="/appointment/book"
-                        className="ml-2 underline text-red-700 hover:text-red-800"
+                      ✅ Great! You are eligible to donate blood based on your
+                      medical certificate.
+                      <button
+                        className="ml-2 underline text-red-700 hover:text-red-800 font-bold"
+                        onClick={() => setShowAppointmentForm(true)}
                       >
                         Book Appointment Now
-                      </Link>
+                      </button>
+                      <div className="mt-2 text-left text-sm text-gray-700">
+                        <strong>Name:</strong> {formData.name}
+                        <br />
+                        <strong>Phone:</strong> {formData.phone}
+                        <br />
+                        <strong>Blood Group:</strong> {formData.bloodGroup}
+                        <br />
+                        <strong>City:</strong> {formData.location.city}
+                        <br />
+                        <strong>Age:</strong> {formData.age}
+                        <br />
+                        <strong>Sex:</strong> {formData.sex}
+                      </div>
                     </div>
                   )}
                   {geminiResult === "error" && (
                     <div className="mt-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg font-semibold text-center">
-                      ⚠️ Unable to analyze certificate. Please try uploading again or contact support.
+                      ⚠️ Unable to analyze certificate. Please try uploading
+                      again or contact support.
                     </div>
                   )}
                 </div>
@@ -475,7 +592,9 @@ const UserDashboard = () => {
                   className={`w-full py-3 bg-gradient-to-r from-red-500 to-red-700 text-white font-bold rounded-lg shadow-lg hover:from-red-600 hover:to-red-800 transition text-lg tracking-wide ${
                     isBlocked ? "opacity-50 cursor-not-allowed" : ""
                   }`}
-                  disabled={loading || isBlocked || uploading || checkingEligibility}
+                  disabled={
+                    loading || isBlocked || uploading || checkingEligibility
+                  }
                 >
                   {loading ? (
                     <span className="animate-pulse">Saving...</span>
@@ -485,13 +604,67 @@ const UserDashboard = () => {
                 </button>
                 {isBlocked && (
                   <p className="text-center text-red-600 text-sm mt-2">
-                    Profile update is disabled due to blood donation eligibility restrictions.
+                    Profile update is disabled due to blood donation eligibility
+                    restrictions.
                   </p>
                 )}
               </div>
             </form>
           )}
         </div>
+       
+        {showAppointmentForm && (
+          <div className="fixed inset-0 bg-gradient-to-br from-red-100 via-white to-blue-100 bg-opacity-90 flex items-center justify-center z-50">
+            <form
+              className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md flex flex-col gap-6 border border-red-200"
+              onSubmit={handleAppointmentSubmit}
+            >
+              <h3 className="text-2xl font-bold text-red-700 mb-2 text-center">
+                Book Blood Donation Appointment
+              </h3>
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold text-gray-700">Day</label>
+                <input
+                  type="date"
+                  name="day"
+                  required
+                  className="border rounded px-3 py-2 w-full focus:ring-2 focus:ring-red-400"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold text-gray-700">Time</label>
+                <input
+                  type="time"
+                  name="time"
+                  required
+                  className="border rounded px-3 py-2 w-full focus:ring-2 focus:ring-red-400"
+                />
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 border">
+                <strong>Name:</strong> {formData.name}<br />
+                <strong>Phone:</strong> {formData.phone}<br />
+                <strong>Blood Group:</strong> {formData.bloodGroup}<br />
+                <strong>City:</strong> {formData.location.city}<br />
+                <strong>Age:</strong> {formData.age}<br />
+                <strong>Sex:</strong> {formData.sex}
+              </div>
+              <button
+                type="submit"
+                className="py-2 px-6 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg font-semibold hover:from-red-600 hover:to-red-800 transition text-lg"
+                disabled={appointmentLoading}
+              >
+                {appointmentLoading ? "Booking..." : "Confirm & Download PDF"}
+              </button>
+              <button
+                type="button"
+                className="mt-2 text-gray-500 underline"
+                onClick={() => setShowAppointmentForm(false)}
+              >
+                Cancel
+              </button>
+            </form>
+          </div>
+        )}
       </main>
     </div>
   );
