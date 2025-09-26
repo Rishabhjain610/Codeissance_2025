@@ -6,15 +6,15 @@ from math import radians, sin, cos, sqrt, asin
 from flask import Flask, request, jsonify
 import requests
 from update_donor_status import update_donor_record # <-- You would import it here
-
-# --- Configuration Update in app.py ---
+'''
+# -- Configuration Update in app.py ---
 # CPASS_URL is now the messaging endpoint# --- Configuration Update in app.py ---
 CPASS_URL = "https://api.twilio.com/2010-04-01/Accounts/AC7f54ae9012bfa1296d94fa3b73bc4f3c/Messages.json" # Make sure YOUR_ACCOUNT_SID is correct here too!
 
 # Replace with your actual credentials from the Twilio Console
 AUTH_SID = "AC7f54ae9012bfa1296d94fa3b73bc4f3c"  # <-- Your REAL Account SID
 AUTH_TOKEN = "7ea2777041e3341ceeb9978f36fbfc7e" # <-- Your REAL Auth Token (one long string)
-
+'''
 # Define the message template for outreach
 SMS_MESSAGE_TEMPLATE = (
     "URGENT BLOOD DONOR NEEDED. Your blood group ({blood_group}) is urgently "
