@@ -7,6 +7,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "../utils/firebase.js";
 import { UserDataContext } from '../context/UserContext.jsx';
+import { HeartPulse } from 'lucide-react'; // Added a relevant icon
 
 const Login = () => {
   const { serverUrl } = useContext(AuthDataContext);
@@ -16,6 +17,7 @@ const Login = () => {
     email: '',
     password: '',
   });
+  const [loading, setLoading] = useState(false); // State for loading
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,6 +30,7 @@ const Login = () => {
       toast.error('All fields are required.');
       return;
     }
+    setLoading(true);
     try {
       const response = await axios.post(`${serverUrl}/api/auth/login`, formData, {
         withCredentials: true,
@@ -41,15 +44,17 @@ const Login = () => {
       const errorMessage = err.response?.data?.message || err.response?.data || 'Login failed. Please check your credentials.';
       toast.error(errorMessage);
       console.error('Login error:', errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setLoading(true);
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const name = user.displayName;
-      const uid = user.uid;
       const email = user.email;
 
       const response = await axios.post(`${serverUrl}/api/auth/google-signin`, {
@@ -69,50 +74,68 @@ const Login = () => {
     } catch (error) {
       toast.error("Google Login failed!");
       console.error("Google Login error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="relative flex items-center justify-center min-h-screen">
-      {/* Background image */}
+    <div className="relative flex items-center justify-center min-h-screen bg-gray-100">
+      
+      {/* Background Image (using the provided image name) */}
       <img
-        src="Login.png"  // <-- replace with your image path
-        alt="Background"
+        src="/organDonation.jpg" // Replace with your actual path
+        alt="A clean, modern image suggesting technology and care"
         className="absolute inset-0 w-full h-full object-cover"
+        // Style to give the image a slightly darker, more professional tone
       />
 
-      {/* Overlay (optional for dimming effect) */}
-      <div className="absolute inset-0 bg-black/40" />
+      {/* Dark Overlay for contrast and professional look */}
+      <div className="absolute inset-0 bg-gray-900/60" /> 
 
-      {/* Login Card */}
-      <div className="relative w-full max-w-md p-8 bg-white/90 backdrop-blur-md rounded-xl shadow-2xl space-y-6 sm:p-10">
+      {/* Login Card Container */}
+      <div className="relative w-full max-w-sm p-8 bg-white rounded-xl shadow-2xl space-y-7 transition-all duration-300 transform hover:shadow-red-500/30">
+        
+        {/* Header with Logo/Title */}
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-800">Welcome Back</h2>
-          <p className="mt-2 text-sm text-gray-600">Sign in to continue</p>
+          <Link to="/" className="inline-flex items-center text-3xl font-bold text-red-600 mb-2">
+            <HeartPulse className="w-8 h-8 mr-2" />
+            LifeConnect
+          </Link>
+          <h2 className="text-2xl font-extrabold text-gray-800">Sign In to Your Account</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Access your intelligent donation dashboard
+          </p>
         </div>
 
+        {/* Google Sign-in Button */}
         <button
           onClick={handleGoogleSignIn}
           type="button"
-          className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-100 transition"
+          disabled={loading}
+          className="flex items-center justify-center w-full px-4 py-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-red-50 transition duration-300 disabled:opacity-50"
         >
-          <FcGoogle className="w-5 h-5 mr-3" />
+          <FcGoogle className="w-6 h-6 mr-3" />
           Sign in with Google
         </button>
 
+        {/* Divider */}
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
+            <div className="w-full border-t border-gray-200" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-3 bg-white text-gray-500">OR</span>
+            <span className="px-3 bg-white text-gray-400">OR</span>
           </div>
         </div>
 
+        {/* Form */}
         <form className="space-y-5" onSubmit={handleSubmit}>
+          
+          {/* Email Field */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email address
+            <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
+              Email Address
             </label>
             <input
               id="email"
@@ -121,12 +144,14 @@ const Login = () => {
               required
               value={formData.email}
               onChange={handleChange}
-              placeholder="you@example.com"
-              className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
+              placeholder="you@lifeconnect.org"
+              className="mt-1 w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 focus:outline-none transition duration-150"
             />
           </div>
+          
+          {/* Password Field */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
               Password
             </label>
             <input
@@ -137,25 +162,41 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               placeholder="••••••••"
-              className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
+              className="mt-1 w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 focus:outline-none transition duration-150"
             />
+            {/* Optional: Forgot Password link */}
+            <div className="text-right mt-1">
+              <a href="#" className="text-xs font-medium text-gray-500 hover:text-red-600 transition duration-150">
+                Forgot password?
+              </a>
+            </div>
           </div>
 
+          {/* Login Button */}
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-[#FDC800] hover:bg-[#CA8A04] text-white font-semibold rounded-md shadow-md transition duration-200"
+            disabled={loading}
+            className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white text-lg font-semibold rounded-lg shadow-md transition duration-200 transform hover:scale-[1.01] disabled:opacity-50 flex items-center justify-center"
           >
-            Log In
+            {loading ? (
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            ) : (
+              'Log In'
+            )}
           </button>
         </form>
 
-        <p className="text-sm text-center text-gray-600">
-          Don't have an account?{' '}
+        {/* Signup Link */}
+        <p className="text-sm text-center text-gray-600 pt-2">
+          New to LifeConnect?{' '}
           <Link
-            to="/Signup"
-            className="font-medium text-indigo-600 hover:underline"
+            to="/signup"
+            className="font-semibold text-red-600 hover:text-red-700 transition duration-150 hover:underline"
           >
-            Sign Up
+            Create an Account
           </Link>
         </p>
       </div>

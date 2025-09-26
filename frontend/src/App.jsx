@@ -38,14 +38,12 @@ const App = () => {
         <Route
           path="/"
           element={
-            loading ? (
-              <div>Loading...</div>
-            ) : user != null ? (
-              <LandingPage />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
+      loading ? (
+        <div>Loading...</div>
+      ) : (
+        <LandingPage />
+      )
+    }
         />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -74,7 +72,6 @@ const App = () => {
           }
         />
       </Routes>
-      <Footer />
     </>
   );
 };
