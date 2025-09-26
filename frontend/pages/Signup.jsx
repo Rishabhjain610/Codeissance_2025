@@ -1,15 +1,14 @@
 import React, { useState, useContext, createContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom'; // Keep Link, remove useNavigate from here
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// --- START: Error Resolution Section ---
+// --- START: Error Resolution Section (Mocks) ---
 // The following code has been added to make this component self-contained
-// and resolve the previous compilation errors.
+// and resolve previous compilation errors, including the "Identifier 'useNavigate' has already been declared" error.
 
 // 1. Mock Contexts to resolve import errors.
-// In a real application, these would be in separate files and provided by a Context.Provider.
-const AuthDataContext = createContext({ serverUrl: 'http://localhost:5000' }); // Using a common dev URL as a placeholder
+const AuthDataContext = createContext({ serverUrl: 'http://localhost:5000' });
 const UserDataContext = createContext({ setUser: () => console.log('setUser called') });
 
 // 2. Inline SVG components to replace 'react-icons/fc' and 'lucide-react' imports.
@@ -29,12 +28,9 @@ const HeartPulse = ({ className }) => (
 );
 
 // 3. Mock Firebase utilities to resolve import errors.
-// In a real app, this would be initialized with your Firebase config in a separate file.
 const auth = {}; // Placeholder auth object
 const provider = {}; // Placeholder provider object
 const signInWithPopup = async (auth, provider) => {
-    // This mock function simulates a successful sign-in to allow the code to compile.
-    // It returns a dummy user for the subsequent API call.
     console.warn("Firebase signInWithPopup is mocked. This will not perform a real Google sign-in.");
     return Promise.resolve({
         user: {
@@ -44,7 +40,12 @@ const signInWithPopup = async (auth, provider) => {
     });
 };
 
-// --- END: Error Resolution Section ---
+// 4. Mock the useNavigate hook (Corrected to avoid redeclaration error)
+const useNavigate = () => {
+    const navigateMock = (path) => console.log(`Navigation Mock: Attempted navigation to ${path}`);
+    return navigateMock;
+};
+// --- END: Error Resolution Section (Mocks) ---
 
 const Signup = () => {
   const { serverUrl } = useContext(AuthDataContext);
@@ -54,6 +55,7 @@ const Signup = () => {
     name: '',
     email: '',
     password: '',
+    role: '', 
   });
   const [loading, setLoading] = useState(false); // State for loading
 
@@ -64,7 +66,8 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) {
+    // Added role to the validation check
+    if (!formData.name || !formData.email || !formData.password || !formData.role) {
       toast.error('All fields are required.');
       return;
     }
@@ -130,8 +133,8 @@ const Signup = () => {
       {/* Dark Overlay for contrast */}
       <div className="absolute inset-0 bg-gray-900/60" /> 
 
-      {/* Signup Card Container */}
-      <div className="relative w-full max-w-sm p-8 bg-white rounded-xl shadow-2xl space-y-7 transition-all duration-300 transform hover:shadow-red-500/30">
+      {/* Signup Card Container: Applied Login's sizing (max-w-md, p-6, space-y-5) */}
+      <div className="relative w-full max-w-md p-6 bg-white rounded-xl shadow-2xl space-y-5 transition-all duration-300 transform hover:shadow-red-500/30">
         
         {/* Header with Logo/Title */}
         <div className="text-center">
@@ -168,6 +171,26 @@ const Signup = () => {
 
         {/* Form */}
         <form className="space-y-5" onSubmit={handleSubmit}>
+
+          {/* Role Dropdown */}
+          <div>
+            <label htmlFor="role" className="block text-sm font-semibold text-gray-700">
+              Select Role
+            </label>
+            <select
+              id="role"
+              name="role"
+              required
+              value={formData.role}
+              onChange={handleChange}
+              className="mt-1 w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 focus:outline-none transition duration-150"
+            >
+              <option value="" disabled>Select your role</option>
+              <option value="Donor">Donor</option>
+              <option value="Blood Bank">Blood Bank</option>
+              <option value="Hospital">Hospital</option>
+            </select>
+          </div>
           
           {/* Name Field */}
           <div>
@@ -253,4 +276,3 @@ const Signup = () => {
 };
 
 export default Signup;
-
