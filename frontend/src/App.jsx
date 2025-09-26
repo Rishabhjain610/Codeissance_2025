@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useContext } from "react";
 import "./App.css";
+import UserDashboard from "../pages/UserDashboard.jsx";
+import HospitalDashboard from "../pages/HospitalDashboard.jsx";
+import BloodBankDashboard from "../pages/BloodBankDashboard.jsx";
 import {
   BrowserRouter as Router,
   Route,
@@ -38,12 +41,12 @@ const App = () => {
         <Route
           path="/"
           element={
-      loading ? (
-        <div>Loading...</div>
-      ) : (
-        <LandingPage />
-      )
-    }
+            loading ? (
+              <div>Loading...</div>
+            ) : (
+              <LandingPage />
+            )
+          }
         />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -66,6 +69,45 @@ const App = () => {
               <div>Loading...</div>
             ) : user != null ? (
               <LandingPage />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        {/* <Route path="/dashboard/user" element={<UserDashboard />} />
+        <Route path="/dashboard/hospital" element={<HospitalDashboard />} />
+        <Route path="/dashboard/bloodbank" element={<BloodBankDashboard />} /> */}
+        <Route
+          path="/dashboard/user"
+          element={
+            loading ? (
+              <div>Loading...</div>
+            ) : user != null ? (
+              <UserDashboard />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/dashboard/hospital"
+          element={
+            loading ? (
+              <div>Loading...</div>
+            ) : user != null ? (
+              <HospitalDashboard />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/dashboard/bloodbank"
+          element={
+            loading ? (
+              <div>Loading...</div>
+            ) : user != null ? (
+              <BloodBankDashboard />
             ) : (
               <Navigate to="/login" />
             )
