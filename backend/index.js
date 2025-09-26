@@ -40,7 +40,7 @@ const connectDB = require("./Db/Db");
 const AuthRouter = require("./routes/auth.routes");
 const UserRouter = require("./routes/user.routes");
 const AppointmentRouter = require("./routes/appointment.routes");
-// const RequestRouter = require("./routes/request.routes");
+const RequestRouter = require("./routes/request.routes");
 const BloodBankRouter = require("./routes/bloodbank.routes");
 const HospitalRouter = require("./routes/hospital.routes");
 const app = express();
@@ -64,7 +64,7 @@ app.use(cookieParser());
 app.use("/api/auth", AuthRouter);
 app.use("/api/user", UserRouter);
 app.use("/api/appointment", AppointmentRouter);
-// app.use("/api/request", RequestRouter);
+app.use("/api/request", RequestRouter);
 app.use("/api/bloodbank", BloodBankRouter);
 app.use("/api/hospital", HospitalRouter);
 
