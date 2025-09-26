@@ -4,6 +4,24 @@ import joblib
 from datetime import datetime
 from math import radians, sin, cos, sqrt, asin
 from flask import Flask, request, jsonify
+import requests
+from update_donor_status import update_donor_record # <-- You would import it here
+
+# --- Configuration Update in app.py ---
+# CPASS_URL is now the messaging endpoint# --- Configuration Update in app.py ---
+CPASS_URL = "https://api.twilio.com/2010-04-01/Accounts/AC7f54ae9012bfa1296d94fa3b73bc4f3c/Messages.json" # Make sure YOUR_ACCOUNT_SID is correct here too!
+
+# Replace with your actual credentials from the Twilio Console
+AUTH_SID = "AC7f54ae9012bfa1296d94fa3b73bc4f3c"  # <-- Your REAL Account SID
+AUTH_TOKEN = "7ea2777041e3341ceeb9978f36fbfc7e" # <-- Your REAL Auth Token (one long string)
+
+# Define the message template for outreach
+SMS_MESSAGE_TEMPLATE = (
+    "URGENT BLOOD DONOR NEEDED. Your blood group ({blood_group}) is urgently "
+    "required at a hospital near your location. Reply YES to accept or NO to decline. "
+    "Reply STOP to opt out. [Donor ID: {donor_id}]"
+)
+
 
 # --- API Setup ---
 app = Flask(__name__)
@@ -94,7 +112,7 @@ def find_top_blood_donors(blood_group, hospital_lat, hospital_long, today_date, 
     
     df_ranked = df_eligible.sort_values(by='suitability_score', ascending=False)
     
-    result_cols = ['name', 'latitude', 'longitude', 'contact_number', 'distance_km', 'likelihood', 'suitability_score']
+    result_cols = ['donor_id', 'name', 'latitude', 'longitude', 'contact_number', 'distance_km', 'likelihood', 'suitability_score']
     return df_ranked[result_cols].head(top_n)
 
 # --- Organ Match Ranking Logic ---
@@ -191,6 +209,108 @@ def organ_match_endpoint():
         return jsonify({"message": f"No eligible organ matches found for {organ}. Check viability time."}), 200
         
     return jsonify(results_df.to_dict('records'))
+
+
+
+# ... (all previous functions and imports are assumed to be above this) ...
+
+@app.route('/api/blood/initiate-call', methods=['POST'])
+def initiate_call_outreach():
+    """Identifies top donors and initiates SMS outreach with failover."""
+    
+    # 1. Parse Input
+    try:
+        data = request.json
+        blood_group = data['blood_group']
+        lat = data['lat']
+        lon = data['lon']
+    except:
+        return jsonify({"error": "Invalid or incomplete JSON input."}), 400
+
+    # 2. Generate Ranked List
+    today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+    top_donors_df = find_top_blood_donors(blood_group, lat, lon, today, top_n=5)
+    
+    if top_donors_df.empty:
+        return jsonify({"status": "failed", "reason": "No eligible donors found."}), 200
+
+    # 3. Failover Loop and CPaaS Integration
+    for index, donor in top_donors_df.iterrows():
+        
+        message_body = SMS_MESSAGE_TEMPLATE.format(
+            blood_group=blood_group,
+            donor_id=donor['donor_id'] # Use Donor ID for easy tracking in the reply
+        )
+
+        try:
+            # --- CPaaS API Call (SMS Structure) ---
+            response = requests.post(
+                CPASS_URL,
+                auth=(AUTH_SID, AUTH_TOKEN),
+                data={
+                    'From': '+18623552189',         # Your assigned CPaaS source number
+                    'To': donor['contact_number'],  # Donor's number
+                    'Body': message_body            # The text message content
+                }
+            )
+            
+            # --- Check Response and Log ---
+            if response.status_code == 201: # Success code for message queued/sent
+                print(f"SUCCESS: SMS initiated for {donor['name']} ({donor['contact_number']}).")
+                
+                # IMPORTANT: SMS confirmation is based on the donor's REPLY (a webhook),
+                # but we treat successful SENDING as step 1 completion for the API.
+                return jsonify({
+                    "status": "success", 
+                    "donor_contacted": donor['name'], 
+                    "contact_number": donor['contact_number'],
+                    "rank_used": index + 1
+                }), 200
+            
+            else:
+                print(f"FAILOVER: CPaaS error {response.status_code} for {donor['name']}. Moving to next donor.")
+
+        except Exception as e:
+            print(f"CRITICAL ERROR during CPaaS request: {e}. Moving to next donor.")
+            continue # Move to the next donor in the loop
+            
+    # 4. Final Failover (If all 5 failed)
+    return jsonify({"status": "failed", "reason": "All top 5 donors failed to queue SMS."}), 200
+
+
+
+
+@app.route('/api/blood/confirm-donation', methods=['POST'])
+def confirm_donation_endpoint():
+    """
+    Receives confirmation of a successful donation (e.g., from a CPaaS webhook)
+    and autonomously triggers the permanent CSV update.
+    """
+    try:
+        data = request.json
+        donor_id = data.get('donor_id')
+        pints = data.get('pints_donated', 1) # Default to 1 pint
+        
+        if not donor_id:
+            return jsonify({"error": "Missing 'donor_id'."}), 400
+
+        # Replace this function call with the actual imported function once integrated.
+        # For this example, we'll assume the update logic is available:
+        success = update_donor_record(donor_id, pints_donated=pints)
+
+        if success:
+            return jsonify({
+                "status": "completed", 
+                "message": f"Record updated for donor {donor_id}. Cooldown activated."
+            }), 200
+        else:
+            return jsonify({
+                "status": "failed", 
+                "message": f"Donor {donor_id} not found or file update failed."
+            }), 404
+            
+    except Exception as e:
+        return jsonify({"error": f"Internal server error during confirmation: {e}"}), 500
 
 
 # --- Running the App ---
