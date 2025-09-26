@@ -1,6 +1,9 @@
-# requirements.txt
 flask
+requests
+google-generativeai
+twilio
+geopy
 pandas
-numpy
+scikit-learn
 joblib
-scikit-learn==1.4.0  # Crucial for model compatibility
+numpy
