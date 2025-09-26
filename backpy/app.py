@@ -45,13 +45,17 @@ def load_resources():
 # --- Utility Functions (Haversine Distance) ---
 
 def haversine(lat1, lon1, lat2, lon2):
-    """Calculates great-circle distance in kilometers."""
-    R = 6371
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    """Calculates great-circle distance in kilometers using numpy for vectorization."""
+    R = 6371  # Earth radius in kilometers
+
+    # Use np.radians and np.sin/cos/sqrt for vectorization across Pandas Series
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+    
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
+    a = np.sin(dlat/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2.0)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    
     return R * c
 
 # --- Blood Donor Matching Logic ---
