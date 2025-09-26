@@ -1,18 +1,69 @@
-// const Request = require("../models/request.model");
-// const axios = require("axios");
 
-// exports.createRequest = async (req, res) => {
-//   const { requesterId, type, bloodGroup, organType, urgency } = req.body;
-//   try {
-//     // If unavailable, call ML service
-//     let matchedDonors = [];
-//     if (type === "blood") {
-//       const mlRes = await axios.post("http://localhost:5000/find-donors", { bloodGroup, requesterId });
-//       matchedDonors = mlRes.data.donors;
-//     }
-//     const request = await Request.create({ requesterId, type, bloodGroup, organType, urgency, matchedDonors });
-//     res.status(201).json({ request, matchedDonors, success: true });
-//   } catch (err) {
-//     res.status(500).json({ message: "Request failed" });
-//   }
-// };
+const Auth = require("../models/auth.model");
+const axios = require("axios"); // For Flask API (dummy for now)
+
+const createBloodRequest = async (req, res) => {
+  try {
+    const { hospitalId, bloodGroup, quantity, location } = req.body;
+    // Find nearest blood bank with required blood group and quantity
+    const bloodBanks = await Auth.find({
+      role: "BloodBank",
+      [`bloodStock.${bloodGroup}`]: { $gte: quantity }
+    });
+
+    if (bloodBanks.length > 0) {
+      // Blood available, reduce stock in first matching blood bank
+      const bloodBank = bloodBanks[0];
+      bloodBank.bloodStock.set(bloodGroup, bloodBank.bloodStock.get(bloodGroup) - quantity);
+      await bloodBank.save();
+      return res.status(200).json({
+        message: "Blood request fulfilled from blood bank",
+        bloodBank: {
+          name: bloodBank.name,
+          location: bloodBank.location,
+          phone: bloodBank.phone
+        }
+      });
+    } else {
+      // Blood not available, call Flask API (dummy data)
+      // const flaskRes = await axios.post("http://flask-api/blood", { bloodGroup, location });
+      // const donors = flaskRes.data.donors;
+      const donors = [
+        { name: "Donor1", phone: "9999990001", location: { latitude: 28.61, longitude: 77.21 } },
+        { name: "Donor2", phone: "9999990002", location: { latitude: 28.62, longitude: 77.22 } },
+        { name: "Donor3", phone: "9999990003", location: { latitude: 28.63, longitude: 77.23 } },
+        { name: "Donor4", phone: "9999990004", location: { latitude: 28.64, longitude: 77.24 } },
+        { name: "Donor5", phone: "9999990005", location: { latitude: 28.65, longitude: 77.25 } }
+      ];
+      return res.status(200).json({
+        message: "Blood not available in blood bank, try contacting these donors",
+        donors
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Error processing blood request" });
+  }
+};
+
+const createOrganRequest = async (req, res) => {
+  try {
+    const { hospitalId, organType, location } = req.body;
+    // Always call Flask API (dummy data)
+    // const flaskRes = await axios.post("http://flask-api/organ", { organType, location });
+    // const donors = flaskRes.data.donors;
+    const donors = [
+      { name: "OrganDonor1", phone: "8888880001", location: { latitude: 28.61, longitude: 77.21 } },
+      { name: "OrganDonor2", phone: "8888880002", location: { latitude: 28.62, longitude: 77.22 } },
+      { name: "OrganDonor3", phone: "8888880003", location: { latitude: 28.63, longitude: 77.23 } },
+      { name: "OrganDonor4", phone: "8888880004", location: { latitude: 28.64, longitude: 77.24 } },
+      { name: "OrganDonor5", phone: "8888880005", location: { latitude: 28.65, longitude: 77.25 } }
+    ];
+    return res.status(200).json({
+      message: "Organ donors found via external API",
+      donors
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error processing organ request" });
+  }
+};
+module.exports = { createBloodRequest, createOrganRequest };
