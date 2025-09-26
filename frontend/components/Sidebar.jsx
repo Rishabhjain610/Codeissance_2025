@@ -5,9 +5,9 @@ import { toast } from "react-toastify";
 import { AuthDataContext } from "../context/AuthContext";
 import { UserDataContext } from "../context/UserContext";
 
-const Sidebar = ({ role }) => {
+const Sidebar = () => {
   const { serverUrl } = useContext(AuthDataContext);
-  const { setUser } = useContext(UserDataContext);
+  const { user, setUser } = useContext(UserDataContext);
   const navigate = useNavigate();
 
   const handleLogoutClick = async () => {
@@ -26,10 +26,15 @@ const Sidebar = ({ role }) => {
     <aside className="h-screen w-64 bg-white shadow-lg flex flex-col py-8 px-4 fixed left-0 top-0">
       <h2 className="text-2xl font-bold text-red-600 mb-8 text-center">Dashboard</h2>
       <nav className="flex flex-col space-y-4">
-        <Link to="/dashboard/user" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">User Home</Link>
-        <Link to="/dashboard/hospital" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">Hospital Home</Link>
-        <Link to="/dashboard/bloodbank" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">Blood Bank Home</Link>
-        {/* Add more buttons/links as needed */}
+        {user && user.role === "NormalUser" && (
+          <Link to="/dashboard/user" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">User Home</Link>
+        )}
+        {user && user.role === "Hospital" && (
+          <Link to="/dashboard/hospital" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">Hospital Home</Link>
+        )}
+        {user && user.role === "BloodBank" && (
+          <Link to="/dashboard/bloodbank" className="py-2 px-4 rounded hover:bg-red-50 font-semibold">Blood Bank Home</Link>
+        )}
         <button
           onClick={handleLogoutClick}
           className="py-2 px-4 rounded hover:bg-gray-100 font-semibold text-gray-500 mt-8 text-left"
