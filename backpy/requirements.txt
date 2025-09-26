@@ -1,0 +1,6 @@
+# requirements.txt
+flask
+pandas
+numpy
+joblib
+scikit-learn==1.4.0  # Crucial for model compatibility
