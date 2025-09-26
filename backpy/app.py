@@ -8,7 +8,41 @@ from flask import Flask, request, jsonify
 # --- API Setup ---
 app = Flask(__name__)
 
-# --- Utility Functions (Haversine & File Loading) ---
+# --- Global Variables for Loaded Resources ---
+# These will hold the dataframes and models after load_resources() runs.
+blood_df = None
+blood_model = None
+blood_features = None
+organ_df = None
+
+# --- Resource Loading Function (The Fix for before_first_request) ---
+def load_resources():
+    """Loads all necessary data and models into memory once."""
+    global blood_df, blood_model, blood_features
+    global organ_df
+
+    print("Loading resources...")
+    try:
+        # Blood Donation Resources
+        blood_df = pd.read_csv('final_indian_blood_donor_dataset.csv')
+        blood_model = joblib.load('indian_donor_likelihood_model_v3.joblib')
+        blood_features = joblib.load('indian_model_features_v3.joblib')
+        
+        # Organ Donation Resources
+        organ_df = pd.read_csv('indian_organ_donor_dataset.csv')
+        
+        # Pre-process blood donor data
+        if 'last_donation_date' not in blood_df.columns:
+            blood_df['last_donation_date'] = blood_df['created_at']
+        blood_df['last_donation_date'] = pd.to_datetime(blood_df['last_donation_date'])
+        
+        print("All resources loaded successfully.")
+    except Exception as e:
+        # Critical error if files are missing or corrupted
+        print(f"FATAL ERROR LOADING RESOURCES: {e}")
+        raise
+
+# --- Utility Functions (Haversine Distance) ---
 
 def haversine(lat1, lon1, lat2, lon2):
     """Calculates great-circle distance in kilometers."""
@@ -20,32 +54,12 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * asin(sqrt(a))
     return R * c
 
-# Cache loaded data and models to avoid reloading on every API call (crucial for performance)
-@app.before_first_request
-def load_resources():
-    global blood_df, blood_model, blood_features
-    global organ_df
-
-    # Blood Donation Resources
-    blood_df = pd.read_csv('final_indian_blood_donor_dataset.csv')
-    blood_model = joblib.load('indian_donor_likelihood_model_v3.joblib')
-    blood_features = joblib.load('indian_model_features_v3.joblib')
-    
-    # Organ Donation Resources
-    organ_df = pd.read_csv('indian_organ_donor_dataset.csv')
-    
-    # Ensure 'last_donation_date' column exists for blood donors
-    if 'last_donation_date' not in blood_df.columns:
-        blood_df['last_donation_date'] = blood_df['created_at']
-    blood_df['last_donation_date'] = pd.to_datetime(blood_df['last_donation_date'])
-    
-    print("All resources loaded successfully.")
-
 # --- Blood Donor Matching Logic ---
 
 def find_top_blood_donors(blood_group, hospital_lat, hospital_long, today_date, top_n=5):
     """Finds top blood donors based on cooldown and suitability score."""
     
+    # Use global data loaded previously
     df_filtered = blood_df[blood_df['blood_group'] == blood_group].copy()
     if df_filtered.empty: return pd.DataFrame()
 
@@ -64,6 +78,7 @@ def find_top_blood_donors(blood_group, hospital_lat, hospital_long, today_date, 
     for col in ['months_since_first_donation', 'number_of_donation', 'pints_donated', 'latitude', 'longitude']:
         if col in X.columns: X[col] = df_eligible[col]
             
+    # One-hot encoding for city
     for index, row in df_eligible.iterrows():
         city_col = f"city_{row['city']}"
         if city_col in X.columns: X.loc[index, city_col] = 1
@@ -85,6 +100,7 @@ def find_best_organ_match(required_organ, recipient_lat, recipient_long, current
     
     MAX_VIABILITY_HOURS = {'Kidney': 12, 'Heart': 4, 'Liver': 10, 'Lung': 6}.get(required_organ, 12)
     
+    # Use global data loaded previously
     df_eligible = organ_df[
         (organ_df['organ_available'] == required_organ) & 
         (organ_df['donor_type'] == 'Deceased')
@@ -128,13 +144,13 @@ def blood_donor_endpoint():
         blood_group = request.args.get('blood_group')
         lat = float(request.args.get('lat'))
         lon = float(request.args.get('lon'))
-        today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0) # Get today's date for cooldown check
+        today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         
         if not blood_group or lat is None or lon is None:
             return jsonify({"error": "Missing required parameters: blood_group, lat, or lon"}), 400
             
     except Exception as e:
-        return jsonify({"error": f"Invalid parameter format: {e}"}), 400
+        return jsonify({"error": f"Invalid parameter format. Must be string for blood_group, float for lat/lon: {e}"}), 400
 
     # 2. Execute Logic
     results_df = find_top_blood_donors(blood_group, lat, lon, today, top_n=5)
@@ -143,7 +159,6 @@ def blood_donor_endpoint():
     if results_df.empty:
         return jsonify({"message": "No eligible blood donors found."}), 200
         
-    # Convert DataFrame to a list of dictionaries for JSON output
     return jsonify(results_df.to_dict('records'))
 
 
@@ -156,14 +171,13 @@ def organ_match_endpoint():
         organ = request.args.get('organ')
         lat = float(request.args.get('lat'))
         lon = float(request.args.get('lon'))
-        # Crucial: Use the current time when the API is called
         current_time_utc = datetime.utcnow() 
         
         if not organ or lat is None or lon is None:
             return jsonify({"error": "Missing required parameters: organ, lat, or lon"}), 400
             
     except Exception as e:
-        return jsonify({"error": f"Invalid parameter format: {e}"}), 400
+        return jsonify({"error": f"Invalid parameter format. Must be string for organ, float for lat/lon: {e}"}), 400
 
     # 2. Execute Logic
     results_df = find_best_organ_match(organ, lat, lon, current_time_utc, top_n=5)
@@ -177,5 +191,13 @@ def organ_match_endpoint():
 
 # --- Running the App ---
 if __name__ == '__main__':
-    # Use a standard port. For production, use a WSGI server (like Gunicorn).
+    # Load resources once before starting the application
+    try:
+        load_resources()
+    except Exception:
+        # If resources fail to load, the app cannot start
+        print("Application failed to start due to resource loading error.")
+        exit(1)
+        
+    # Run the application
     app.run(debug=True, host='0.0.0.0', port=5000)
