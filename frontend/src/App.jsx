@@ -40,13 +40,7 @@ const App = () => {
       <Routes>
         <Route
           path="/"
-          element={
-            loading ? (
-              <div>Loading...</div>
-            ) : (
-              <LandingPage />
-            )
-          }
+          element={loading ? <div>Loading...</div> : <LandingPage />}
         />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -74,15 +68,13 @@ const App = () => {
             )
           }
         />
-        {/* <Route path="/dashboard/user" element={<UserDashboard />} />
-        <Route path="/dashboard/hospital" element={<HospitalDashboard />} />
-        <Route path="/dashboard/bloodbank" element={<BloodBankDashboard />} /> */}
+
         <Route
           path="/dashboard/user"
           element={
             loading ? (
               <div>Loading...</div>
-            ) : user != null ? (
+            ) : user && user.role === "NormalUser" ? (
               <UserDashboard />
             ) : (
               <Navigate to="/login" />
@@ -94,7 +86,7 @@ const App = () => {
           element={
             loading ? (
               <div>Loading...</div>
-            ) : user != null ? (
+            ) : user && user.role === "Hospital" ? (
               <HospitalDashboard />
             ) : (
               <Navigate to="/login" />
@@ -106,7 +98,7 @@ const App = () => {
           element={
             loading ? (
               <div>Loading...</div>
-            ) : user != null ? (
+            ) : user && user.role === "BloodBank" ? (
               <BloodBankDashboard />
             ) : (
               <Navigate to="/login" />

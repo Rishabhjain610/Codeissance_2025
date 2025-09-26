@@ -38,6 +38,14 @@ const Login = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
+  useEffect(() => {
+  if (user) {
+    if (user.role === "NormalUser") navigate("/dashboard/user");
+    else if (user.role === "Hospital") navigate("/dashboard/hospital");
+    else if (user.role === "BloodBank") navigate("/dashboard/bloodbank");
+    else navigate("/");
+  }
+}, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
