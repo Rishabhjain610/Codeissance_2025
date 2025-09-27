@@ -6,7 +6,8 @@ from math import radians, sin, cos, sqrt, asin
 from flask import Flask, request, jsonify
 from emergency_sos_system import SOS_BLUEPRINT, sos_system
 import requests
-from update_donor_status import update_donor_record # <-- You would import it here
+from update_donor_status import update_donor_record # <-- You 
+from flask_cors import CORS
 
 # -- Configuration Update in app.py ---
 # CPASS_URL is now the messaging endpoint# --- Configuration Update in app.py ---
@@ -26,9 +27,9 @@ SMS_MESSAGE_TEMPLATE = (
 
 # --- API Setup ---
 app = Flask(__name__)
+CORS(app,resources={r"/*":{"origins":"*"}})  # Enable CORS for all routes
 # Register SOS blueprint
 app.register_blueprint(SOS_BLUEPRINT)
-
 
 # --- Global Variables for Loaded Resources ---
 # These will hold the dataframes and models after load_resources() runs.

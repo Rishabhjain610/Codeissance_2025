@@ -105,7 +105,7 @@ const RequestOrganPage = () => {
           </button>
         </form>
 
-        {result && (
+        {/* {result && (
           <div className="bg-white p-6 rounded-lg shadow w-full max-w-md">
             <div className="font-bold mb-2 text-red-600">{result.message}</div>
             {result.donors && (
@@ -131,7 +131,35 @@ const RequestOrganPage = () => {
               </div>
             )}
           </div>
-        )}
+        )} */}
+        {result.donors && Array.isArray(result.donors) && result.donors.length > 0 && (
+  <div>
+    <div className="font-semibold mt-2 mb-1">Donors:</div>
+    <ul className="space-y-2">
+      {result.donors.map((d, i) => (
+        <li key={i} className="flex items-center justify-between border rounded p-3">
+          <div className="text-sm">
+            <div className="font-medium">{d.name}</div>
+            <div className="text-gray-600 text-xs">{d.phone || d.hospital_contact_number || `${d.latitude},${d.longitude}`}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => contactUser(d)}
+            className="ml-4 bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
+          >
+            Contact
+          </button>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+{result.donors && Array.isArray(result.donors) && result.donors.length === 0 && (
+  <div className="text-gray-500">No donors found.</div>
+)}
+{result.donors && !Array.isArray(result.donors) && (
+  <div className="text-gray-500">No donors found or invalid response.</div>
+)}
       </div>
     </div>
   );
