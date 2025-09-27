@@ -6,9 +6,10 @@ import requests
 from datetime import datetime, timedelta
 import google.generativeai as genai
 from typing import Dict, List
+import schedule
 
 # --- Configuration ---
-GENAI_API_KEY = "AIzaSyCdpjXVhv3QlwnOm-3aai2YxdJ2eKRrQGo"   # Replace with your actual API key
+GENAI_API_KEY = ""   # Replace with your actual API key
 FLASK_API_BASE = "http://127.0.0.1:5000/api"
 
 # Blood bank inventory thresholds (units)
@@ -32,7 +33,7 @@ class GoogleAIBloodBankAgent:
 
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
         self.monitoring_active = False
         self.last_check = {}
 
@@ -220,9 +221,30 @@ class GoogleAIBloodBankAgent:
         self.monitoring_active = False
         print("🛑 Monitoring stopped")
 
+def job():
+    """Defines the single task the agent needs to perform."""
+    # We create a new agent instance for each run to keep it clean.
+    agent = GoogleAIBloodBankAgent(api_key=GENAI_API_KEY)
+    print("--- Running scheduled monitoring cycle ---")
+    agent.run_monitoring_cycle()
+    print("--- Cycle complete. Waiting for next scheduled run. ---")
 
 # --- Run Once for Testing ---
 if __name__ == "__main__":
-    agent = GoogleAIBloodBankAgent(api_key=GENAI_API_KEY)
-    print("Running single monitoring cycle...")
-    results = agent.run_monitoring_cycle()
+    print("🚀 AI Agent Scheduler Started. First run is immediate.")
+    
+    # Run the job once right away
+    job() 
+    
+    # Schedule the job to run every 15 minutes and store it in a variable
+    scheduled_job = schedule.every(4).minutes.do(job)
+
+    # CORRECTED LINE: Get the next_run time from the job variable itself
+    print(f"✅ Job scheduled successfully. Next run at: {scheduled_job.next_run.strftime('%H:%M:%S')}")
+
+    try:
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n⛔ Scheduler stopped by user.")
