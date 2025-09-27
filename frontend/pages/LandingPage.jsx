@@ -53,7 +53,7 @@ const LandingPage = () => {
       {/* --- */}
 
       {/* === 2. Features Section (Value Proposition) === */}
-      <section id="features" className="py-16 md:py-24 bg-white">
+      <section id="features" className="py-16 md:py-24 bg-white/">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <span className="text-red-600 uppercase tracking-widest font-semibold text-sm">Technology for Humanity</span>

@@ -5,6 +5,31 @@ const axios = require("axios"); // For Flask API (dummy for now)
 const createBloodRequest = async (req, res) => {
   try {
     const { hospitalId, bloodGroup, quantity, location } = req.body;
+    
+    // Create a blood request record
+    const bloodRequest = {
+      hospitalId: hospitalId,
+      bloodGroup: bloodGroup,
+      quantity: quantity,
+      location: location,
+      status: "pending",
+      createdAt: new Date(),
+      _id: new require('mongoose').Types.ObjectId()
+    };
+
+    // Find the hospital and add the blood request
+    const hospital = await Auth.findById(hospitalId);
+    if (!hospital) {
+      return res.status(404).json({ message: "Hospital not found" });
+    }
+
+    // Add blood request to hospital
+    if (!hospital.bloodRequests) {
+      hospital.bloodRequests = [];
+    }
+    hospital.bloodRequests.push(bloodRequest);
+    await hospital.save();
+
     // Find nearest blood bank with required blood group and quantity
     const bloodBanks = await Auth.find({
       role: "BloodBank",
@@ -36,11 +61,12 @@ const createBloodRequest = async (req, res) => {
         { name: "Donor5", phone: "9999990005", location: { latitude: 28.65, longitude: 77.25 } }
       ];
       return res.status(200).json({
-        message: "Blood not available in blood bank, try contacting these donors",
+        message: "Blood request created and sent to blood banks. Blood not immediately available, try contacting these donors",
         donors
       });
     }
   } catch (error) {
+    console.error("Error processing blood request:", error);
     res.status(500).json({ message: "Error processing blood request" });
   }
 };

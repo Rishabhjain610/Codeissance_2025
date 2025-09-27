@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const { bookAppointment } = require("../controller/appointment.controller");
 const AppointmentRouter = express.Router();
 
