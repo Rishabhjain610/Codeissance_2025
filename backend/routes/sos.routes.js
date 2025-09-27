@@ -1,14 +1,16 @@
 const express = require("express");
-const SosRouter = express.Router();
+const { createSosAlert, getSosAlerts, updateSosAlert } = require("../controllers/sos.controller");
 const authMiddleware = require("../middleware/auth.middleware");
-const {
-  createSosAlert,
-  getSosAlerts,
-  updateSosAlert
-} = require("../controller/sos.controller");
 
-SosRouter.post("/alert", authMiddleware, createSosAlert);
-SosRouter.get("/alerts", authMiddleware, getSosAlerts);
-SosRouter.put("/alert/:alertId", authMiddleware, updateSosAlert);
+const router = express.Router();
 
-module.exports = SosRouter;
+// Normal user creates SOS
+router.post("/", authMiddleware, createSosAlert);
+
+// Hospital fetches its SOS alerts
+router.get("/", authMiddleware, getSosAlerts);
+
+// Hospital updates a specific SOS alert
+router.put("/:alertId", authMiddleware, updateSosAlert);
+
+module.exports = router;

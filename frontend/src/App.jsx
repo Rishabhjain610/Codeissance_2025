@@ -37,6 +37,7 @@ const AppContent = () => {
     '/bloodbank/appointments', 
     '/bloodbank/requests', 
     '/request-blood',
+    '/request-organ',
     '/bloodbank/inventory',
     '/dashboard/hospital',
     '/dashboard/user',

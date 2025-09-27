@@ -63,6 +63,7 @@ app.use(
       "http://localhost:5173",
       "http://localhost:3000",
       "http://localhost:5174",
+      "http://localhost:5175",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -81,6 +82,7 @@ app.use("/api/request", RequestRouter);
 app.use("/api/bloodbank", BloodBankRouter);
 app.use("/api/hospital", HospitalRouter);
 app.use("/api/sos", SosRouter);
+
 
 app.use("/api/upload", uploadRoutes);
 

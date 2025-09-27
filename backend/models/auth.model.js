@@ -1,7 +1,19 @@
-
 const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
 
+// SOS Alert Schema
+const sosAlertSchema = new Schema({
+  userId: { type: Schema.Types.ObjectId, ref: "Auth" },
+  emergencyType: String,
+  urgency: String,
+  description: String,
+  location: String,
+  timestamp: { type: Date, default: Date.now },
+  status: { type: String, default: "active" },
+  ambulanceDispatched: { type: Boolean, default: false },
+});
+
+// Main Auth Schema
 const authSchema = new Schema(
   {
     role: { type: String, enum: ["NormalUser", "Hospital", "BloodBank"], required: true },
@@ -27,11 +39,10 @@ const authSchema = new Schema(
     canDonateOrgan: { type: Boolean, default: false },
     profileCompleted: { type: Boolean, default: false },
     bloodStock: { type: Map, of: Number, default: {} }, // For BloodBank
-    
     appointments: [{ type: Schema.Types.ObjectId, ref: "Appointment" }], // For BloodBank
     organRequests: [{ type: Schema.Types.ObjectId, ref: "Request" }], // For Hospital
     bloodRequests: [{ type: Schema.Types.ObjectId, ref: "Request" }], // For Hospital
-    sosAlerts: [{ type: Schema.Types.Mixed }], // For Hospital - SOS alerts
+    sosAlerts: [sosAlertSchema], // 👈 All hospitals can hold SOS alerts
     donationHistory: [{ type: Schema.Types.ObjectId, ref: "Appointment" }], // For NormalUser
     requestHistory: [{ type: Schema.Types.ObjectId, ref: "Request" }], // For NormalUser
   },

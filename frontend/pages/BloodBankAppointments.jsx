@@ -5,35 +5,86 @@ import { AuthDataContext } from "../context/AuthContext";
 import { UserDataContext } from "../context/UserContext";
 import { toast } from "react-toastify";
 
+// Define a default context value for better code clarity if contexts are not always available
+// Assuming Sidebar is imported and functional
+
 const BloodBankAppointments = () => {
+  // 1. Context Hooks
+  // Ensure that serverUrl and user are correctly provided by the contexts.
   const { serverUrl } = useContext(AuthDataContext);
   const { user } = useContext(UserDataContext);
 
+  // 2. State Hooks
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  // State for temporary blood collection details for 'accept' action
+  const [actionDetails, setActionDetails] = useState({ 
+    appointmentId: null, 
+    bloodType: 'A+', 
+    units: 1 
+  });
+  const [showModal, setShowModal] = useState(false);
 
+  // 3. Effect Hook to Fetch Data
   useEffect(() => {
-    fetchAppointments();
-  }, []);
+    // Check if serverUrl is available before fetching
+    if (serverUrl) {
+      fetchAppointments();
+    } else {
+      console.error("serverUrl is not defined in AuthDataContext.");
+      setLoading(false);
+      toast.error("Configuration error: Server URL is missing.");
+    }
+  }, [serverUrl]); // Dependency on serverUrl to refetch if context loads late
 
+  // 4. Data Fetching Function
   const fetchAppointments = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get(`${serverUrl}/api/bloodbank/appointments`, 
-        { withCredentials: true });
+      const endpoint = `${serverUrl}/api/bloodbank/appointments`;
+      // console.log("Fetching from:", endpoint); // Debugging line
+
+      const response = await axios.get(endpoint, { withCredentials: true });
       
-      if (response.data && response.data.appointments) {
-        setAppointments(response.data.appointments);
+      // FIX/IMPROVEMENT: Handle different server response structures
+      let fetchedAppointments = [];
+      if (response.data && Array.isArray(response.data.appointments)) {
+        fetchedAppointments = response.data.appointments;
+      } else if (response.data && Array.isArray(response.data)) {
+         // Fallback for servers that return the array directly
+         fetchedAppointments = response.data;
+      } else {
+         console.warn("API returned successful status but unexpected data structure:", response.data);
       }
+      
+      setAppointments(fetchedAppointments);
+      
     } catch (error) {
-      console.error("Error fetching appointments:", error);
-      toast.error("Failed to load appointments");
+      console.error("Error fetching appointments:", error.response?.data || error.message);
+      toast.error(`Failed to load appointments: ${error.response?.data?.message || 'Check console for details.'}`);
+      setAppointments([]); // Ensure the list is cleared on failure
     } finally {
       setLoading(false);
     }
   };
 
+  // 5. Action Handlers
+  
+  // Handler for opening the modal to input collection details
+  const handleOpenAcceptModal = (appointmentId, suggestedBloodType) => {
+    setActionDetails({ 
+        appointmentId, 
+        bloodType: suggestedBloodType || 'A+', 
+        units: 1 
+    });
+    setShowModal(true);
+  };
+  
+  // Consolidated action logic after modal confirmation
   const handleAppointmentAction = async (appointmentId, action, bloodType = null, units = 1) => {
+    setShowModal(false); // Close modal if open
+
     try {
       let endpoint = "";
       let payload = {};
@@ -41,7 +92,7 @@ const BloodBankAppointments = () => {
       if (action === "accept") {
         endpoint = `${serverUrl}/api/bloodbank/appointment/${appointmentId}/complete`;
         payload = {
-          bloodType: bloodType || "A+",
+          bloodType: bloodType,
           unitsCollected: units,
           donationDate: new Date().toISOString()
         };
@@ -50,7 +101,7 @@ const BloodBankAppointments = () => {
         payload = {};
       }
 
-      console.log("Sending request to:", endpoint, "with payload:", payload);
+      // console.log("Sending request to:", endpoint, "with payload:", payload);
 
       const response = await axios.put(endpoint, payload, { withCredentials: true });
 
@@ -73,7 +124,9 @@ const BloodBankAppointments = () => {
       toast.error(`Failed to ${action} appointment: ${error.response?.data?.message || error.message}`);
     }
   };
-
+  
+  // Helper functions for stock and ML model (kept as is, assuming server-side logic is correct)
+  
   const updateBloodStock = async (bloodType, units) => {
     try {
       // First get current stock
@@ -147,7 +200,7 @@ const BloodBankAppointments = () => {
         
         if (mlResponse.data && mlResponse.data.length > 0) {
           toast.success(`Found ${mlResponse.data.length} potential donors for ${bloodType}`);
-          console.log("ML Model Results:", mlResponse.data);
+          // console.log("ML Model Results:", mlResponse.data);
         } else {
           toast.info(`No eligible donors found for ${bloodType} at this time`);
         }
@@ -158,6 +211,7 @@ const BloodBankAppointments = () => {
     }
   };
 
+  // 6. Utility Functions
   const getStatusColor = (status) => {
     switch (status) {
       case "scheduled":
@@ -174,6 +228,15 @@ const BloodBankAppointments = () => {
 
   const filteredAppointments = appointments.filter(appointment => {
     if (filter === "all") return true;
+    // Note: The stats object uses 'rejected' to combine 'cancelled' and 'rejected' statuses.
+    // Ensure this filter logic matches the status values from the backend.
+    if (filter === "rejected") {
+      return appointment.status === "rejected" || appointment.status === "cancelled";
+    }
+    // 'cancelled' filter here should probably map to the 'rejected' bucket for UI consistency
+    if (filter === "cancelled") {
+      return appointment.status === "rejected" || appointment.status === "cancelled";
+    }
     return appointment.status === filter;
   });
 
@@ -182,12 +245,14 @@ const BloodBankAppointments = () => {
       total: appointments.length,
       scheduled: appointments.filter(a => a.status === "scheduled").length,
       completed: appointments.filter(a => a.status === "completed").length,
+      // Combining cancelled and rejected for the UI stats card
       rejected: appointments.filter(a => a.status === "cancelled" || a.status === "rejected").length
     };
   };
 
   const stats = getAppointmentStats();
 
+  // 7. Loading State Render
   if (loading) {
     return (
       <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -202,6 +267,7 @@ const BloodBankAppointments = () => {
     );
   }
 
+  // 8. Main Component Render
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <Sidebar />
@@ -298,7 +364,7 @@ const BloodBankAppointments = () => {
               { key: "all", label: "All", count: stats.total },
               { key: "scheduled", label: "Scheduled", count: stats.scheduled },
               { key: "completed", label: "Completed", count: stats.completed },
-              { key: "cancelled", label: "Rejected", count: stats.rejected }
+              { key: "rejected", label: "Rejected", count: stats.rejected } // Use 'rejected' key to match stats
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -365,7 +431,8 @@ const BloodBankAppointments = () => {
                           </div>
                           <div className="flex items-center">
                             <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span>
-                            {appointment.userId?.bloodGroup || 'Unknown'}
+                            {/* Assuming bloodGroup is available on userId object, defaulting to requested type if user data is incomplete */}
+                            {appointment.userId?.bloodGroup || appointment.type || 'Unknown'} 
                           </div>
                           <div className="flex items-center">
                             <span className="text-xs text-gray-500 capitalize">
@@ -389,7 +456,8 @@ const BloodBankAppointments = () => {
                       {appointment.status === "scheduled" && (
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleAppointmentAction(appointment._id, "accept", appointment.userId?.bloodGroup || 'A+', 1)}
+                            // Use the modal opener instead of direct action
+                            onClick={() => handleOpenAcceptModal(appointment._id, appointment.userId?.bloodGroup || 'A+')}
                             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center"
                           >
                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,6 +491,61 @@ const BloodBankAppointments = () => {
           )}
         </div>
       </div>
+      
+      {/* 9. Acceptance Modal (New Addition for Better UX) */}
+      {showModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Confirm Donation</h3>
+            <p className="text-gray-600 mb-6">Enter the actual details of the blood collected.</p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Blood Type Collected</label>
+              <select
+                value={actionDetails.bloodType}
+                onChange={(e) => setActionDetails({...actionDetails, bloodType: e.target.value})}
+                className="w-full border border-gray-300 p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              >
+                {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(type => (
+                    <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Units Collected</label>
+              <input
+                type="number"
+                min="1"
+                max="5"
+                value={actionDetails.units}
+                onChange={(e) => setActionDetails({...actionDetails, units: parseInt(e.target.value) || 1})}
+                className="w-full border border-gray-300 p-2 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAppointmentAction(
+                    actionDetails.appointmentId, 
+                    "accept", 
+                    actionDetails.bloodType, 
+                    actionDetails.units
+                )}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Confirm Collection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,35 +1,30 @@
 const Auth = require("../models/auth.model");
 
+// Create SOS alert and send to all hospitals
 const createSosAlert = async (req, res) => {
   try {
     const { userId, emergencyType, urgency, description, location, timestamp } = req.body;
-    
-    // Create SOS alert
+
     const sosAlert = {
-      userId: userId,
-      emergencyType: emergencyType,
-      urgency: urgency,
-      description: description,
-      location: location,
-      timestamp: timestamp,
+      userId,
+      emergencyType,
+      urgency,
+      description,
+      location,
+      timestamp,
       status: "active",
-      _id: new require('mongoose').Types.ObjectId()
     };
 
-    // Find all hospitals and add the SOS alert
+    // Find all hospitals and push this SOS
     const hospitals = await Auth.find({ role: "Hospital" });
-    
+
     for (const hospital of hospitals) {
-      if (!hospital.sosAlerts) {
-        hospital.sosAlerts = [];
-      }
       hospital.sosAlerts.push(sosAlert);
       await hospital.save();
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "SOS alert sent to all hospitals",
-      alertId: sosAlert._id
     });
   } catch (error) {
     console.error("Error creating SOS alert:", error);
@@ -37,6 +32,7 @@ const createSosAlert = async (req, res) => {
   }
 };
 
+// Get SOS alerts for a hospital
 const getSosAlerts = async (req, res) => {
   try {
     const hospital = await Auth.findById(req.user.id);
@@ -44,14 +40,14 @@ const getSosAlerts = async (req, res) => {
       return res.status(404).json({ message: "Hospital not found" });
     }
 
-    const alerts = hospital.sosAlerts || [];
-    res.status(200).json({ alerts });
+    res.status(200).json({ alerts: hospital.sosAlerts || [] });
   } catch (error) {
     console.error("Error fetching SOS alerts:", error);
     res.status(500).json({ message: "Error fetching SOS alerts" });
   }
 };
 
+// Update a specific SOS alert
 const updateSosAlert = async (req, res) => {
   try {
     const { alertId } = req.params;
@@ -81,5 +77,5 @@ const updateSosAlert = async (req, res) => {
 module.exports = {
   createSosAlert,
   getSosAlerts,
-  updateSosAlert
+  updateSosAlert,
 };
