@@ -5,6 +5,10 @@ import HospitalDashboard from "../pages/HospitalDashboard.jsx";
 import BloodBankDashboard from "../pages/BloodBankDashboard.jsx";
 import RequestBloodPage from "../pages/RequestBloodPage.jsx";
 import RequestOrganPage from "../pages/RequestOrganPage.jsx";
+import BloodBankAppointments from "../pages/BloodBankAppointments.jsx";
+import BloodBankInventory from "../pages/BloodInventory.jsx";
+import BloodRequest from "../pages/BloodRequest.jsx";
+import EmergencySOS from "../pages/EmergencySOS.jsx";
 import {
   BrowserRouter as Router,
   Route,
@@ -16,7 +20,6 @@ import LandingPage from "../pages/LandingPage";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
 import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UserDataContext } from "../context/UserContext.jsx";
@@ -33,9 +36,11 @@ const AppContent = () => {
     '/dashboard/bloodbank',
     '/bloodbank/appointments', 
     '/bloodbank/requests', 
+    '/request-blood',
     '/bloodbank/inventory',
     '/dashboard/hospital',
     '/dashboard/user',
+    '/emergency',
   ];
   
   const shouldHideNavbar = hideNavbarRoutes.includes(location.pathname);
@@ -63,8 +68,10 @@ const AppContent = () => {
         />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route
-          path="/about"
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/bloodbank/appointments" element={<BloodBankAppointments />} />
+        <Route path="/bloodbank/inventory" element={<BloodBankInventory />} />
+        <Route path="/about"
           element={
             loading ? (
               <div>Loading...</div>
@@ -143,7 +150,7 @@ const AppContent = () => {
             loading ? (
               <div>Loading...</div>
             ) : user && user.role === "BloodBank" ? (
-              <BloodBankDashboard />
+              <BloodRequest />
             ) : (
               <Navigate to="/login" />
             )
@@ -163,6 +170,7 @@ const AppContent = () => {
         />
         <Route path="/request-blood" element={<RequestBloodPage />} />
         <Route path="/request-organ" element={<RequestOrganPage />} />
+        <Route path="/emergency" element={<EmergencySOS />} />
       </Routes>
     </>
   );

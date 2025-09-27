@@ -47,7 +47,10 @@ const BloodBankAppointments = () => {
         };
       } else if (action === "reject") {
         endpoint = `${serverUrl}/api/bloodbank/appointment/${appointmentId}/reject`;
+        payload = {};
       }
+
+      console.log("Sending request to:", endpoint, "with payload:", payload);
 
       const response = await axios.put(endpoint, payload, { withCredentials: true });
 
@@ -57,6 +60,8 @@ const BloodBankAppointments = () => {
         // Update the bloodbank stock if accepted
         if (action === "accept" && bloodType) {
           await updateBloodStock(bloodType, units);
+          // Check if blood is low and trigger ML model
+          await checkLowBloodAndTriggerML(bloodType);
         }
         
         // Refresh appointments
@@ -64,7 +69,8 @@ const BloodBankAppointments = () => {
       }
     } catch (error) {
       console.error("Error updating appointment:", error);
-      toast.error("Failed to update appointment");
+      console.error("Error details:", error.response?.data);
+      toast.error(`Failed to ${action} appointment: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -77,18 +83,78 @@ const BloodBankAppointments = () => {
       if (profileResponse.data && profileResponse.data.bloodBank) {
         const currentStock = profileResponse.data.bloodBank.bloodStock || {};
         const newStock = { ...currentStock };
-        newStock[bloodType] = (newStock[bloodType] || 0) + units;
+        const currentAmount = newStock[bloodType] || 0;
+        const newAmount = Math.min(currentAmount + units, 50); // Max limit 50
         
-        // Update stock
-        await axios.put(`${serverUrl}/api/bloodbank/stock`, {
-          bloodStock: newStock
-        }, { withCredentials: true });
-        
-        toast.success(`${units} units of ${bloodType} added to inventory`);
+        if (newAmount > currentAmount) {
+          newStock[bloodType] = newAmount;
+          
+          // Update stock
+          await axios.put(`${serverUrl}/api/bloodbank/stock`, {
+            bloodStock: newStock
+          }, { withCredentials: true });
+          
+          toast.success(`${units} units of ${bloodType} added to inventory (Total: ${newAmount})`);
+        } else {
+          toast.warning(`Inventory for ${bloodType} is at maximum capacity (50 units)`);
+        }
       }
     } catch (error) {
       console.error("Error updating blood stock:", error);
       toast.error("Failed to update inventory");
+    }
+  };
+
+  const checkLowBloodAndTriggerML = async (bloodType) => {
+    try {
+      const profileResponse = await axios.get(`${serverUrl}/api/bloodbank/profile`, 
+        { withCredentials: true });
+      
+      if (profileResponse.data && profileResponse.data.bloodBank) {
+        const currentStock = profileResponse.data.bloodBank.bloodStock || {};
+        const currentAmount = currentStock[bloodType] || 0;
+        
+        // Check if blood is low (less than 10 units)
+        if (currentAmount < 10) {
+          toast.warning(`Low blood inventory for ${bloodType} (${currentAmount} units). Triggering ML model to find donors...`);
+          
+          // Trigger ML model to find most viable donors
+          await triggerMLDonorSearch(bloodType);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking blood levels:", error);
+    }
+  };
+
+  const triggerMLDonorSearch = async (bloodType) => {
+    try {
+      // Get blood bank location
+      const profileResponse = await axios.get(`${serverUrl}/api/bloodbank/profile`, 
+        { withCredentials: true });
+      
+      if (profileResponse.data && profileResponse.data.bloodBank && profileResponse.data.bloodBank.location) {
+        const location = profileResponse.data.bloodBank.location;
+        
+        // Call ML model in backpy
+        const mlResponse = await axios.get(`http://localhost:5000/api/blood/find-donors`, {
+          params: {
+            blood_group: bloodType,
+            lat: location.latitude,
+            lon: location.longitude
+          }
+        });
+        
+        if (mlResponse.data && mlResponse.data.length > 0) {
+          toast.success(`Found ${mlResponse.data.length} potential donors for ${bloodType}`);
+          console.log("ML Model Results:", mlResponse.data);
+        } else {
+          toast.info(`No eligible donors found for ${bloodType} at this time`);
+        }
+      }
+    } catch (error) {
+      console.error("Error triggering ML donor search:", error);
+      toast.error("Failed to search for donors via ML model");
     }
   };
 
@@ -116,7 +182,7 @@ const BloodBankAppointments = () => {
       total: appointments.length,
       scheduled: appointments.filter(a => a.status === "scheduled").length,
       completed: appointments.filter(a => a.status === "completed").length,
-      rejected: appointments.filter(a => a.status === "rejected").length
+      rejected: appointments.filter(a => a.status === "cancelled" || a.status === "rejected").length
     };
   };
 
@@ -232,7 +298,7 @@ const BloodBankAppointments = () => {
               { key: "all", label: "All", count: stats.total },
               { key: "scheduled", label: "Scheduled", count: stats.scheduled },
               { key: "completed", label: "Completed", count: stats.completed },
-              { key: "rejected", label: "Rejected", count: stats.rejected }
+              { key: "cancelled", label: "Rejected", count: stats.rejected }
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -322,24 +388,22 @@ const BloodBankAppointments = () => {
 
                       {appointment.status === "scheduled" && (
                         <div className="flex items-center space-x-2">
-                          <select 
-                            className="border border-gray-300 rounded px-2 py-1 text-sm"
-                            onChange={(e) => {
-                              const [bloodType, units] = e.target.value.split(',');
-                              if (bloodType && units) {
-                                handleAppointmentAction(appointment._id, "accept", bloodType, parseInt(units));
-                              }
-                            }}
+                          <button
+                            onClick={() => handleAppointmentAction(appointment._id, "accept", appointment.userId?.bloodGroup || 'A+', 1)}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center"
                           >
-                            <option value="">Accept & Collect</option>
-                            <option value={`${appointment.userId?.bloodGroup || 'A+'},1`}>
-                              {appointment.userId?.bloodGroup || 'A+'} - 1 unit
-                            </option>
-                          </select>
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Accept
+                          </button>
                           <button
                             onClick={() => handleAppointmentAction(appointment._id, "reject")}
-                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-semibold transition-colors duration-200"
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200 flex items-center"
                           >
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                             Reject
                           </button>
                         </div>

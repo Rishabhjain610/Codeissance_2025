@@ -43,6 +43,7 @@ const AppointmentRouter = require("./routes/appointment.routes");
 const RequestRouter = require("./routes/request.routes");
 const BloodBankRouter = require("./routes/bloodbank.routes");
 const HospitalRouter = require("./routes/hospital.routes");
+const SosRouter = require("./routes/sos.routes");
 const uploadRoutes = require("./routes/upload.routes");
 
 
@@ -79,6 +80,7 @@ app.use("/api/appointment", AppointmentRouter);
 app.use("/api/request", RequestRouter);
 app.use("/api/bloodbank", BloodBankRouter);
 app.use("/api/hospital", HospitalRouter);
+app.use("/api/sos", SosRouter);
 
 app.use("/api/upload", uploadRoutes);
 

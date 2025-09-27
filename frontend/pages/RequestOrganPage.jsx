@@ -18,16 +18,43 @@ const RequestOrganPage = () => {
     setResult(null);
     setLoading(true);
     try {
-      const res = await axios.post(
-        `${serverUrl}/api/request/organ`,
-        {
-          hospitalId: user._id,
-          organType,
-          location: user.location,
-        },
-        { withCredentials: true }
-      );
-      setResult(res.data);
+      // First try to get ML model results
+      let mlDonors = [];
+      try {
+        const mlResponse = await axios.get(`http://localhost:5000/api/organ/find-matches`, {
+          params: {
+            organ: organType,
+            lat: user.location?.latitude || 0,
+            lon: user.location?.longitude || 0
+          }
+        });
+        
+        if (mlResponse.data && mlResponse.data.length > 0) {
+          mlDonors = mlResponse.data;
+        }
+      } catch (mlError) {
+        console.log("ML model not available, using fallback data");
+      }
+
+      // If ML model didn't return results, use backend fallback
+      if (mlDonors.length === 0) {
+        const res = await axios.post(
+          `${serverUrl}/api/request/organ`,
+          {
+            hospitalId: user._id,
+            organType,
+            location: user.location,
+          },
+          { withCredentials: true }
+        );
+        setResult(res.data);
+      } else {
+        // Use ML model results
+        setResult({
+          message: `Found ${mlDonors.length} potential organ matches via ML model`,
+          donors: mlDonors
+        });
+      }
     } catch (err) {
       setResult({ message: "Error requesting organ." });
     }

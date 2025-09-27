@@ -31,6 +31,7 @@ const authSchema = new Schema(
     appointments: [{ type: Schema.Types.ObjectId, ref: "Appointment" }], // For BloodBank
     organRequests: [{ type: Schema.Types.ObjectId, ref: "Request" }], // For Hospital
     bloodRequests: [{ type: Schema.Types.ObjectId, ref: "Request" }], // For Hospital
+    sosAlerts: [{ type: Schema.Types.Mixed }], // For Hospital - SOS alerts
     donationHistory: [{ type: Schema.Types.ObjectId, ref: "Appointment" }], // For NormalUser
     requestHistory: [{ type: Schema.Types.ObjectId, ref: "Request" }], // For NormalUser
   },
