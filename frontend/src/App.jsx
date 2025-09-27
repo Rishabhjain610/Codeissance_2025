@@ -42,6 +42,7 @@ const AppContent = () => {
     '/dashboard/hospital',
     '/dashboard/user',
     '/emergency',
+    '/request-organ'
   ];
   
   const shouldHideNavbar = hideNavbarRoutes.includes(location.pathname);

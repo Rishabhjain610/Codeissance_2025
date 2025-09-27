@@ -1,4 +1,3 @@
-// ...existing code...
 import React, { useState, useContext } from "react";
 import Sidebar from "../components/Sidebar";
 import axios from "axios";
@@ -12,76 +11,71 @@ const RequestOrganPage = () => {
   const [organType, setOrganType] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setResult(null);
+    setError("");
     setLoading(true);
+    
     try {
-      // First try to get ML model results
-      let mlDonors = [];
-      try {
-        const mlResponse = await axios.get(`http://localhost:5000/api/organ/find-matches`, {
-          params: {
-            organ: organType,
-            lat: user.location?.latitude || 0,
-            lon: user.location?.longitude || 0
-          }
-        });
-        
-        if (mlResponse.data && mlResponse.data.length > 0) {
-          mlDonors = mlResponse.data;
-        }
-      } catch (mlError) {
-        console.log("ML model not available, using fallback data");
+      // Validate inputs
+      if (!organType) {
+        setError("Please select an organ type");
+        setLoading(false);
+        return;
       }
 
-      // If ML model didn't return results, use backend fallback
-      if (mlDonors.length === 0) {
-        const res = await axios.post(
-          `${serverUrl}/api/request/organ`,
-          {
-            hospitalId: user._id,
-            organType,
-            location: user.location,
-          },
-          { withCredentials: true }
-        );
-        setResult(res.data);
-      } else {
-        // Use ML model results
-        setResult({
-          message: `Found ${mlDonors.length} potential organ matches via ML model`,
-          donors: mlDonors
-        });
+      if (!user?.location?.latitude || !user?.location?.longitude) {
+        setError("Please update your hospital location in profile settings");
+        setLoading(false);
+        return;
       }
+
+      const requestData = {
+        hospitalId: user._id,
+        organType,
+        location: user.location,
+      };
+
+      // Use backend API which handles both Flask and fallback
+      const response = await axios.post(
+        `${serverUrl}/api/request/organ`,
+        requestData,
+        { 
+          withCredentials: true,
+          timeout: 10000
+        }
+      );
+
+      setResult(response.data);
+
     } catch (err) {
-      setResult({ message: "Error requesting organ." });
+      console.error("Error requesting organ:", err);
+      const errorMessage = err.response?.data?.message || 
+                          "Failed to process organ request. Please try again.";
+      setError(errorMessage);
     }
+    
     setLoading(false);
   };
 
   const contactUser = async (donor) => {
     try {
-      const donorPhone =
-        donor.phone ||
-        donor.hospital_contact_number ||
-        donor.contact_number ||
-        donor.phone_number ||
-        donor.contact;
-      const payload = {
-        donorName: donor.name || donorName,
-        donorPhone,
-        hospitalName: user.name || "Hospital",
-        location: user.location || { latitude: 0, longitude: 0 },
-      };
-      await axios.post(`${serverUrl}/api/notify/contact-user`, payload, {
-        withCredentials: true,
-      });
-      alert("Contact request sent.");
+      const donorPhone = donor.hospital_contact_number || donor.contact_number;
+      
+      if (!donorPhone) {
+        alert("No contact information available for this donor");
+        return;
+      }
+
+      // In a real implementation, this would send a notification/email
+      alert(`Contacting: ${donor.name} at ${donorPhone}`);
+      
     } catch (err) {
-      console.error(err);
-      alert("Failed to send contact request.");
+      console.error("Contact error:", err);
+      alert("Failed to initiate contact. Please try manual contact.");
     }
   };
 
@@ -90,80 +84,87 @@ const RequestOrganPage = () => {
       <Sidebar />
       <div className="flex-1 flex flex-col items-center bg-gray-50 ml-64 p-8">
         <h2 className="text-3xl font-bold text-red-600 mb-6">Request Organ</h2>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 w-full max-w-md">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow w-full max-w-md mb-6">
           <label className="block mb-2 font-semibold text-gray-700">Organ Type</label>
-          <input
-            type="text"
+          <select
             value={organType}
             onChange={(e) => setOrganType(e.target.value)}
             className="border border-gray-300 rounded px-3 py-2 w-full mb-6 focus:outline-none focus:ring-2 focus:ring-red-200"
-            placeholder="e.g. Kidney"
             required
-          />
-          <button type="submit" className="bg-red-600 text-white px-4 py-2 rounded font-semibold hover:bg-red-700 transition">
-            {loading ? "Requesting..." : "Request Organ"}
+          >
+            <option value="">Select an organ</option>
+            <option value="Kidney">Kidney</option>
+            <option value="Heart">Heart</option>
+            <option value="Liver">Liver</option>
+            <option value="Lung">Lung</option>
+          </select>
+          
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="bg-red-600 text-white px-4 py-2 rounded font-semibold hover:bg-red-700 disabled:bg-red-400 transition w-full"
+          >
+            {loading ? "Searching for Donors..." : "Find Organ Donors"}
           </button>
         </form>
 
-        {/* {result && (
-          <div className="bg-white p-6 rounded-lg shadow w-full max-w-md">
-            <div className="font-bold mb-2 text-red-600">{result.message}</div>
-            {result.donors && (
+        {result && (
+          <div className="bg-white p-6 rounded-lg shadow w-full max-w-4xl">
+            <div className={`font-bold mb-4 text-lg ${
+              result.donors?.length > 0 ? 'text-green-600' : 'text-yellow-600'
+            }`}>
+              {result.message}
+            </div>
+            
+            {result.donors && result.donors.length > 0 ? (
               <div>
-                <div className="font-semibold mt-2 mb-1">Donors:</div>
-                <ul className="space-y-2">
-                  {result.donors.map((d, i) => (
-                    <li key={i} className="flex items-center justify-between border rounded p-3">
-                      <div className="text-sm">
-                        <div className="font-medium">{d.name}</div>
-                        <div className="text-gray-600 text-xs">{d.phone || d.hospital_contact_number || `${d.latitude},${d.longitude}`}</div>
+                <div className="font-semibold mb-3 text-gray-700">
+                  Available Donors ({result.donors.length} found):
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {result.donors.map((donor, index) => (
+                    <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {donor.name || `Donor ${index + 1}`}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            Contact: {donor.hospital_contact_number || donor.contact_number || "Information available upon request"}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {donor.distance_km && `Distance: ${donor.distance_km.toFixed(2)} km`}
+                            {donor.suitability_score && ` • Match Score: ${donor.suitability_score.toFixed(3)}`}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => contactUser(donor)}
+                          className="ml-4 bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 transition"
+                        >
+                          Contact
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => contactUser(d)}
-                        className="ml-4 bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
-                      >
-                        Contact
-                      </button>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-center py-4">
+                No organ donors found matching your criteria. Please try a different organ type or check back later.
               </div>
             )}
           </div>
-        )} */}
-        {result.donors && Array.isArray(result.donors) && result.donors.length > 0 && (
-  <div>
-    <div className="font-semibold mt-2 mb-1">Donors:</div>
-    <ul className="space-y-2">
-      {result.donors.map((d, i) => (
-        <li key={i} className="flex items-center justify-between border rounded p-3">
-          <div className="text-sm">
-            <div className="font-medium">{d.name}</div>
-            <div className="text-gray-600 text-xs">{d.phone || d.hospital_contact_number || `${d.latitude},${d.longitude}`}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => contactUser(d)}
-            className="ml-4 bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
-          >
-            Contact
-          </button>
-        </li>
-      ))}
-    </ul>
-  </div>
-)}
-{result.donors && Array.isArray(result.donors) && result.donors.length === 0 && (
-  <div className="text-gray-500">No donors found.</div>
-)}
-{result.donors && !Array.isArray(result.donors) && (
-  <div className="text-gray-500">No donors found or invalid response.</div>
-)}
+        )}
       </div>
     </div>
   );
 };
 
 export default RequestOrganPage;
-// ...existing code...

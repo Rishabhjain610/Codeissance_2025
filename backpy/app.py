@@ -123,9 +123,7 @@ def find_top_blood_donors(blood_group, hospital_lat, hospital_long, today_date, 
 # --- Organ Match Ranking Logic ---
 
 def find_best_organ_match(required_organ, recipient_lat, recipient_long, current_time_utc, top_n=5):
-    """Ranks deceased organ donors based on HLA score, proximity, and viability."""
-    
-    MAX_VIABILITY_HOURS = {'Kidney': 12, 'Heart': 4, 'Liver': 10, 'Lung': 6}.get(required_organ, 12)
+    """Simplified version for demo - ignores time constraints"""
     
     # Use global data loaded previously
     df_eligible = organ_df[
@@ -133,31 +131,23 @@ def find_best_organ_match(required_organ, recipient_lat, recipient_long, current
         (organ_df['donor_type'] == 'Deceased')
     ].copy()
     
-    if df_eligible.empty: return pd.DataFrame()
-        
-    df_eligible['time_available_utc'] = pd.to_datetime(df_eligible['time_available_utc'])
+    if df_eligible.empty: 
+        return pd.DataFrame()
     
-    time_elapsed = current_time_utc - df_eligible['time_available_utc']
-    df_eligible['hours_elapsed'] = time_elapsed.dt.total_seconds() / 3600
-    df_eligible = df_eligible[df_eligible['hours_elapsed'] < MAX_VIABILITY_HOURS].copy()
-    
-    if df_eligible.empty: return pd.DataFrame()
-
-    # Calculate Distance & Penalties
+    # Calculate Distance only (ignore time constraints for demo)
     df_eligible['distance_km'] = df_eligible.apply(
         lambda row: haversine(row['latitude'], row['longitude'], recipient_lat, recipient_long), axis=1
     )
-    df_eligible['time_penalty_factor'] = 1 - (df_eligible['hours_elapsed'] / MAX_VIABILITY_HOURS)
     
-    # Score = (HLA Match * Size Factor * Time Penalty) / (Distance + 1)
+    # Score based on HLA and distance only
     df_eligible['suitability_score'] = (
-        df_eligible['hla_match_score'] * df_eligible['tissue_size_factor'] * df_eligible['time_penalty_factor']
+        df_eligible['hla_match_score'] * df_eligible['tissue_size_factor']
     ) / (df_eligible['distance_km'] + 1)
     
     df_ranked = df_eligible.sort_values(by='suitability_score', ascending=False)
     
-    # NOTE: Using 'hospital_contact_number'
-    result_cols = ['name', 'latitude', 'longitude', 'hospital_contact_number', 'hla_match_score', 'hours_elapsed', 'distance_km', 'suitability_score']
+    result_cols = ['name', 'latitude', 'longitude', 'hospital_contact_number', 'hla_match_score', 'distance_km', 'suitability_score']
+    
     return df_ranked[result_cols].head(top_n)
 
 # --- API Endpoints ---

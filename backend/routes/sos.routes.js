@@ -1,5 +1,5 @@
 const express = require("express");
-const { createSosAlert, getSosAlerts, updateSosAlert } = require("../controllers/sos.controller");
+const { createSosAlert, getSosAlerts, updateSosAlert } = require("../controller/sos.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 
 const router = express.Router();
